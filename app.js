@@ -20,6 +20,19 @@ app.use(require('./middleware/validation').sanitizeInput);
 // Routes
 app.use('/api', require('./routes'));
 
+// Root route for Render health check
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'FinTech Backend API is running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      documentation: '/api/docs'
+    }
+  });
+});
+
 // Error handling middleware (must be after routes)
 app.use(require('./middleware/errorHandler').notFoundHandler);
 app.use(require('./middleware/errorHandler').errorMonitor);

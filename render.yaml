@@ -3,7 +3,7 @@ services:
   - type: web
     name: fintech-backend-api
     env: node
-    repo: https://github.com/your-username/fintech-backend-system.git
+    repo: https://github.com/Pichikachandu/fintech_backend_System.git
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
