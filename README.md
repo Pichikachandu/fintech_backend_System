@@ -165,7 +165,6 @@ Authorization: Bearer <your-jwt-token>
 |----------|--------|---------|--------|
 | View Dashboard | ✅ | ✅ | ✅ |
 | View All Records | ✅ | ✅ | ❌ |
-| View Own Records | ✅ | ✅ | ❌ |
 | Create Records | ✅ | ❌ | ❌ |
 | Update Records | ✅ | ❌ | ❌ |
 | Delete Records | ✅ | ❌ | ❌ |
