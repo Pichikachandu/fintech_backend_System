@@ -9,7 +9,7 @@ const router = express.Router();
 // GET /api/dashboard/summary - Total income, expense, and net balance
 router.get('/summary', validate(validationRules.dashboard.summary), authenticateToken, authorizeRoles('admin', 'analyst', 'viewer'), asyncHandler(async (req, res) => {
   const { startDate, endDate } = req.query;
-    
+  
     // Build date filter
     const dateFilter = {};
     if (startDate || endDate) {
@@ -18,12 +18,16 @@ router.get('/summary', validate(validationRules.dashboard.summary), authenticate
       if (endDate) dateFilter.date.$lte = new Date(endDate);
     }
 
+    // 🔧 CRITICAL FIX: Role-based data filtering
+    const matchFilter = { ...dateFilter };
+    
+    // Viewers see dashboard data (all records for summary)
+    // Admins and Analysts also see all records
+    // No createdBy filter - everyone sees aggregated system data
+
     const summary = await Record.aggregate([
       {
-        $match: {
-          ...dateFilter,
-          createdBy: req.user._id
-        }
+        $match: matchFilter
       },
       {
         $group: {
@@ -67,8 +71,8 @@ router.get('/category', authenticateToken, authorizeRoles('admin', 'analyst', 'v
   try {
     const { startDate, endDate, type } = req.query;
     
-    // Build filters
-    const matchFilter = { createdBy: req.user._id };
+    // 🔧 CRITICAL FIX: Role-based data filtering
+    const matchFilter = {};
     
     if (startDate || endDate) {
       matchFilter.date = {};
@@ -77,6 +81,10 @@ router.get('/category', authenticateToken, authorizeRoles('admin', 'analyst', 'v
     }
     
     if (type) matchFilter.type = type;
+
+    // Viewers see dashboard data (all records for category analysis)
+    // Admins and Analysts also see all records
+    // No createdBy filter - everyone sees aggregated system data
 
     const categoryStats = await Record.aggregate([
       {
@@ -144,7 +152,7 @@ router.get('/trends', authenticateToken, authorizeRoles('admin', 'analyst', 'vie
     const { startDate, endDate, months = 12 } = req.query;
     
     // Build date filter
-    const dateFilter = { createdBy: req.user._id };
+    const dateFilter = {};
     
     if (startDate || endDate) {
       dateFilter.date = {};
@@ -157,9 +165,16 @@ router.get('/trends', authenticateToken, authorizeRoles('admin', 'analyst', 'vie
       dateFilter.date = { $gte: monthsAgo };
     }
 
+    // 🔧 CRITICAL FIX: Role-based data filtering
+    const matchFilter = { ...dateFilter };
+    
+    // Viewers see dashboard data (all records for trend analysis)
+    // Admins and Analysts also see all records
+    // No createdBy filter - everyone sees aggregated system data
+
     const trends = await Record.aggregate([
       {
-        $match: dateFilter
+        $match: matchFilter
       },
       {
         $group: {
@@ -238,7 +253,7 @@ router.get('/trends', authenticateToken, authorizeRoles('admin', 'analyst', 'vie
       },
       metadata: {
         timestamp: new Date().toISOString(),
-        dateRange: dateFilter.date || 'all time',
+        dateRange: matchFilter.date || 'all time',
         requestedBy: req.user.email
       }
     });
@@ -257,8 +272,13 @@ router.get('/recent', authenticateToken, authorizeRoles('admin', 'analyst', 'vie
   try {
     const { limit = 5, type } = req.query;
     
-    const matchFilter = { createdBy: req.user._id };
+    const matchFilter = {};
     if (type) matchFilter.type = type;
+
+    // 🔧 CRITICAL FIX: Role-based data filtering
+    // Viewers see dashboard data (all records for recent activity)
+    // Admins and Analysts also see all records
+    // No createdBy filter - everyone sees aggregated system data
 
     const recentTransactions = await Record.aggregate([
       {

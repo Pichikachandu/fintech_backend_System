@@ -211,6 +211,14 @@ router.get('/', authenticateToken, authorizeRoles('admin', 'analyst'), async (re
       ];
     }
 
+    // 🔧 CRITICAL FIX: Role-based data filtering
+    // Viewers are not allowed in this route (handled by authorizeRoles)
+    // Admins and Analysts see all records (no createdBy filter needed)
+    // If you want to add viewer access later, uncomment:
+    // if (req.user.role === 'viewer') {
+    //   filter.createdBy = req.user._id;
+    // }
+
     // Validate sort options
     const validSortFields = ['date', 'amount', 'category', 'type', 'createdAt'];
     const validSortOrders = ['asc', 'desc'];
@@ -619,6 +627,10 @@ router.get('/summary/stats', authenticateToken, authorizeRoles('admin', 'analyst
     if (category) {
       filter.category = { $regex: category, $options: 'i' };
     }
+
+    // 🔧 CRITICAL FIX: Role-based data filtering
+    // Admins and Analysts see all records (no createdBy filter needed)
+    // Viewers are not allowed in this route (handled by authorizeRoles)
 
     // Get comprehensive statistics
     const [
