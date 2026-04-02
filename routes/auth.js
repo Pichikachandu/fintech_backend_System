@@ -2,75 +2,33 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { authenticateToken } = require('../middleware/auth');
+const { validate, validationRules } = require('../middleware/validation');
+const { asyncHandler, businessErrors } = require('../middleware/errorHandler');
 
 const router = express.Router();
 
 // POST /api/auth/login - User login
-router.post('/login', async (req, res) => {
+router.post('/login', validate(validationRules.auth.login), asyncHandler(async (req, res) => {
   try {
     const { email, password } = req.body;
-
-    // Validate input
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Both email and password are required for login.',
-        error: 'MISSING_CREDENTIALS',
-        required: ['email', 'password']
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide a valid email address.',
-        error: 'INVALID_EMAIL_FORMAT'
-      });
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters long.',
-        error: 'PASSWORD_TOO_SHORT'
-      });
-    }
 
     // Find user with password included
     const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Login failed. No account found with this email address.',
-        error: 'USER_NOT_FOUND',
-        suggestion: 'Please check your email or create an account if you\'re new.'
-      });
+      throw businessErrors.invalidCredentials;
     }
 
     // Check if user is inactive
     if (user.status === 'inactive') {
-      return res.status(403).json({
-        success: false,
-        message: 'Account access denied. Your account has been deactivated.',
-        error: 'ACCOUNT_INACTIVE',
-        suggestion: 'Please contact your administrator to reactivate your account.'
-      });
+      throw new businessErrors.ForbiddenError('Account access denied. Your account has been deactivated.');
     }
 
     // Verify password
     const isPasswordValid = user.comparePassword(password);
 
     if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        message: 'Login failed. Incorrect password provided.',
-        error: 'INVALID_PASSWORD',
-        suggestion: 'Please check your password and try again.'
-      });
+      throw businessErrors.invalidCredentials;
     }
 
     // Generate JWT token with proper expiry
@@ -116,118 +74,86 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'An unexpected error occurred during login. Please try again later.',
-      error: 'LOGIN_FAILED',
-      suggestion: 'If the problem persists, please contact support.'
-    });
+    next(error);
   }
-});
+}));
 
 // GET /api/auth/me - Get current user profile (protected)
-router.get('/me', authenticateToken, async (req, res) => {
-  try {
-    // Add session information
-    const sessionInfo = {
-      tokenIssuedAt: req.tokenIssuedAt ? new Date(req.tokenIssuedAt * 1000).toISOString() : null,
-      sessionDuration: req.tokenIssuedAt ? Date.now() - (req.tokenIssuedAt * 1000) : null
-    };
+router.get('/me', authenticateToken, asyncHandler(async (req, res) => {
+  // Add session information
+  const sessionInfo = {
+    tokenIssuedAt: req.tokenIssuedAt ? new Date(req.tokenIssuedAt * 1000).toISOString() : null,
+    sessionDuration: req.tokenIssuedAt ? Date.now() - (req.tokenIssuedAt * 1000) : null
+  };
 
-    res.json({
-      success: true,
-      message: 'User profile retrieved successfully.',
-      data: {
-        user: req.user,
-        session: sessionInfo
-      },
-      metadata: {
-        timestamp: new Date().toISOString()
-      }
-    });
-  } catch (error) {
-    console.error('Get profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve user profile. Please try again.',
-      error: 'PROFILE_RETRIEVAL_FAILED'
-    });
-  }
-});
+  res.json({
+    success: true,
+    message: 'User profile retrieved successfully.',
+    data: {
+      user: req.user,
+      session: sessionInfo
+    },
+    metadata: {
+      timestamp: new Date().toISOString()
+    }
+  });
+}));
 
 // POST /api/auth/refresh - Refresh JWT token
-router.post('/refresh', authenticateToken, async (req, res) => {
-  try {
-    const user = req.user;
-    
-    // Check if token is still valid (not expired)
-    const now = Math.floor(Date.now() / 1000);
-    const tokenAge = now - req.tokenIssuedAt;
-    const maxAge = 30 * 60; // 30 minutes maximum age for refresh
-    
-    if (tokenAge > maxAge) {
-      return res.status(401).json({
-        success: false,
-        message: 'Token too old for refresh. Please login again.',
-        error: 'TOKEN_TOO_OLD',
-        maxAgeMinutes: 30,
-        tokenAgeMinutes: Math.floor(tokenAge / 60),
-        suggestion: 'Please login with your credentials to get a fresh token.'
-      });
-    }
-
-    // Generate new JWT token
-    const tokenExpiry = process.env.JWT_EXPIRES_IN || '24h';
-    const newToken = jwt.sign(
-      { 
-        id: user._id, 
-        email: user.email, 
-        role: user.role,
-        iat: Math.floor(Date.now() / 1000)
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: tokenExpiry }
-    );
-
-    // Calculate token expiry time for client reference
-    const expiresInMs = tokenExpiry.endsWith('h') ? 
-      parseInt(tokenExpiry) * 60 * 60 * 1000 : 
-      tokenExpiry.endsWith('d') ? 
-      parseInt(tokenExpiry) * 24 * 60 * 60 * 1000 : 
-      24 * 60 * 60 * 1000;
-    
-    const expiresAt = new Date(Date.now() + expiresInMs);
-
-    res.json({
-      success: true,
-      message: 'Token refreshed successfully.',
-      data: {
-        token: newToken,
-        tokenInfo: {
-          expiresIn: tokenExpiry,
-          expiresAt: expiresAt.toISOString(),
-          tokenType: 'Bearer'
-        }
-      },
-      metadata: {
-        timestamp: new Date().toISOString(),
-        refreshedBy: user.email
-      }
-    });
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to refresh token. Please login again.',
-      error: 'TOKEN_REFRESH_FAILED',
-      suggestion: 'Please login with your credentials to get a new token.'
-    });
+router.post('/refresh', authenticateToken, asyncHandler(async (req, res) => {
+  const user = req.user;
+  
+  // Check if token is still valid (not expired)
+  const now = Math.floor(Date.now() / 1000);
+  const tokenAge = now - req.tokenIssuedAt;
+  const maxAge = 30 * 60; // 30 minutes maximum age for refresh
+  
+  if (tokenAge > maxAge) {
+    throw new businessErrors.UnauthorizedError('Token too old for refresh. Please login again.');
   }
-});
+
+  // Generate new JWT token
+  const tokenExpiry = process.env.JWT_EXPIRES_IN || '24h';
+  const newToken = jwt.sign(
+    { 
+      id: user._id, 
+      email: user.email, 
+      role: user.role,
+      iat: Math.floor(Date.now() / 1000)
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: tokenExpiry }
+  );
+
+  // Calculate token expiry time for client reference
+  const expiresInMs = tokenExpiry.endsWith('h') ? 
+    parseInt(tokenExpiry) * 60 * 60 * 1000 : 
+    tokenExpiry.endsWith('d') ? 
+    parseInt(tokenExpiry) * 24 * 60 * 60 * 1000 : 
+    24 * 60 * 60 * 1000;
+  
+  const expiresAt = new Date(Date.now() + expiresInMs);
+
+  res.json({
+    success: true,
+    message: 'Token refreshed successfully.',
+    data: {
+      token: newToken,
+      tokenInfo: {
+        expiresIn: tokenExpiry,
+        expiresAt: expiresAt.toISOString(),
+        tokenType: 'Bearer'
+      }
+    },
+    metadata: {
+      timestamp: new Date().toISOString(),
+      refreshedBy: user.email
+    }
+  });
+}));
 
 // POST /api/auth/logout - User logout (client-side token removal)
-router.post('/logout', authenticateToken, (req, res) => {
+router.post('/logout', authenticateToken, asyncHandler(async (req, res) => {
   // In a stateless JWT setup, logout is handled client-side
   // This endpoint can be used for logging or future token blacklisting
   
@@ -247,6 +173,6 @@ router.post('/logout', authenticateToken, (req, res) => {
     },
     suggestion: 'Please clear your stored token to complete the logout process.'
   });
-});
+}));
 
 module.exports = router;

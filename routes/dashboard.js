@@ -1,13 +1,14 @@
 const express = require('express');
 const Record = require('../models/Record');
 const { authenticateToken, authorizeRoles } = require('../middleware/auth');
+const { validate, validationRules } = require('../middleware/validation');
+const { asyncHandler } = require('../middleware/errorHandler');
 
 const router = express.Router();
 
 // GET /api/dashboard/summary - Total income, expense, and net balance
-router.get('/summary', authenticateToken, authorizeRoles('admin', 'analyst', 'viewer'), async (req, res) => {
-  try {
-    const { startDate, endDate } = req.query;
+router.get('/summary', validate(validationRules.dashboard.summary), authenticateToken, authorizeRoles('admin', 'analyst', 'viewer'), asyncHandler(async (req, res) => {
+  const { startDate, endDate } = req.query;
     
     // Build date filter
     const dateFilter = {};
@@ -59,15 +60,7 @@ router.get('/summary', authenticateToken, authorizeRoles('admin', 'analyst', 'vi
         requestedBy: req.user.email
       }
     });
-  } catch (error) {
-    console.error('Dashboard summary error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve dashboard summary.',
-      error: 'SUMMARY_RETRIEVAL_FAILED'
-    });
-  }
-});
+}));
 
 // GET /api/dashboard/category - Category-wise totals
 router.get('/category', authenticateToken, authorizeRoles('admin', 'analyst', 'viewer'), async (req, res) => {
