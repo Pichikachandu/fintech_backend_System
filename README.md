@@ -213,17 +213,8 @@ Authorization: Bearer <your-jwt-token>
 
 ##  Testing
 
-### Running Tests
-```bash
-# Test admin user creation
-node scripts/create-admin.js
-
-# Test dashboard APIs
-node test-dashboard.js
-
-# Test validation and error handling
-node test-validation.js
-```
+### API Testing
+All APIs are tested using Postman API for comprehensive testing and validation.
 
 ##  Configuration
 
