@@ -7,7 +7,8 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const router = express.Router();
 
 // GET /api/dashboard/summary - Total income, expense, and net balance
-router.get('/summary', validate(validationRules.dashboard.summary), authenticateToken, authorizeRoles('admin', 'analyst', 'viewer'), asyncHandler(async (req, res) => {
+router.get('/summary', validate(validationRules.dashboard.summary), authenticateToken, authorizeRoles('admin', 'analyst', 'viewer'), asyncHandler(async (req, res, next) => {
+
   const { startDate, endDate } = req.query;
   
     // Build date filter
@@ -19,7 +20,7 @@ router.get('/summary', validate(validationRules.dashboard.summary), authenticate
     }
 
     // 🔧 CRITICAL FIX: Role-based data filtering
-    const matchFilter = { ...dateFilter };
+    const matchFilter = { ...dateFilter, isDeleted: false };
     
     // Viewers see dashboard data (all records for summary)
     // Admins and Analysts also see all records
@@ -72,7 +73,7 @@ router.get('/category', authenticateToken, authorizeRoles('admin', 'analyst', 'v
     const { startDate, endDate, type } = req.query;
     
     // 🔧 CRITICAL FIX: Role-based data filtering
-    const matchFilter = {};
+    const matchFilter = { isDeleted: false };
     
     if (startDate || endDate) {
       matchFilter.date = {};
@@ -166,7 +167,7 @@ router.get('/trends', authenticateToken, authorizeRoles('admin', 'analyst', 'vie
     }
 
     // 🔧 CRITICAL FIX: Role-based data filtering
-    const matchFilter = { ...dateFilter };
+    const matchFilter = { ...dateFilter, isDeleted: false };
     
     // Viewers see dashboard data (all records for trend analysis)
     // Admins and Analysts also see all records
@@ -272,7 +273,7 @@ router.get('/recent', authenticateToken, authorizeRoles('admin', 'analyst', 'vie
   try {
     const { limit = 5, type } = req.query;
     
-    const matchFilter = {};
+    const matchFilter = { isDeleted: false };
     if (type) matchFilter.type = type;
 
     // 🔧 CRITICAL FIX: Role-based data filtering

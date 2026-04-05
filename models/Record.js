@@ -47,6 +47,11 @@ const recordSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: [true, 'Created by user is required']
+  },
+  isDeleted: {
+    type: Boolean,
+    default: false,
+    index: true
   }
 }, {
   timestamps: true,

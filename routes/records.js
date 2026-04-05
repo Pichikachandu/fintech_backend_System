@@ -154,7 +154,7 @@ router.get('/', authenticateToken, authorizeRoles('admin', 'analyst'), async (re
     const skip = (page - 1) * limit;
 
     // Build filter
-    const filter = {};
+    const filter = { isDeleted: false };
     
     // Filter by type
     if (type) {
@@ -256,7 +256,7 @@ router.get('/', authenticateToken, authorizeRoles('admin', 'analyst'), async (re
 
     // Calculate summary statistics
     const summary = await Record.aggregate([
-      { $match: filter },
+      { $match: { ...filter, isDeleted: false } },
       {
         $group: {
           _id: null,
@@ -338,9 +338,8 @@ router.get('/', authenticateToken, authorizeRoles('admin', 'analyst'), async (re
 // GET /api/records/:id - Get specific record (admin + analyst)
 router.get('/:id', authenticateToken, authorizeRoles('admin', 'analyst'), async (req, res) => {
   try {
-    const record = await Record.findById(req.params.id).populate('createdBy', 'name email');
-
-    if (!record) {
+    const record = await Record.findOne({ _id: req.params.id, isDeleted: false }).populate('createdBy', 'name email');
+     if (!record) {
       return res.status(404).json({
         success: false,
         message: 'Record not found.',
@@ -541,9 +540,12 @@ router.put('/:id', authenticateToken, adminOnly, async (req, res) => {
 // DELETE /api/records/:id - Delete record (admin only)
 router.delete('/:id', authenticateToken, adminOnly, async (req, res) => {
   try {
-    const record = await Record.findByIdAndDelete(req.params.id);
-
-    if (!record) {
+    const record = await Record.findByIdAndUpdate(
+      req.params.id,
+      { isDeleted: true },
+      { new: true }
+    );
+     if (!record) {
       return res.status(404).json({
         success: false,
         message: 'Record not found.',
@@ -591,7 +593,7 @@ router.get('/summary/stats', authenticateToken, authorizeRoles('admin', 'analyst
     const { startDate, endDate, type, category } = req.query;
 
     // Build filter
-    const filter = {};
+    const filter = { isDeleted: false };
     
     if (startDate || endDate) {
       filter.date = {};

@@ -3,7 +3,25 @@ const express = require('express');
 const cors = require('cors');
 const connectDB = require('./config/database');
 
+const rateLimit = require('express-rate-limit');
+
 const app = express();
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests from this IP, please try again after 15 minutes',
+    error: 'RATE_LIMIT_EXCEEDED'
+  }
+});
+
+// Apply rate limiter to all routes
+app.use(limiter);
 
 // Connect to MongoDB
 connectDB();

@@ -3,13 +3,12 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { authenticateToken } = require('../middleware/auth');
 const { validate, validationRules } = require('../middleware/validation');
-const { asyncHandler, businessErrors } = require('../middleware/errorHandler');
+const { asyncHandler, businessErrors, ForbiddenError } = require('../middleware/errorHandler');
 
 const router = express.Router();
 
 // POST /api/auth/login - User login
-router.post('/login', validate(validationRules.auth.login), asyncHandler(async (req, res) => {
-  try {
+router.post('/login', validate(validationRules.auth.login), asyncHandler(async (req, res, next) => {
     const { email, password } = req.body;
 
     // Find user with password included
@@ -21,7 +20,7 @@ router.post('/login', validate(validationRules.auth.login), asyncHandler(async (
 
     // Check if user is inactive
     if (user.status === 'inactive') {
-      throw new businessErrors.ForbiddenError('Account access denied. Your account has been deactivated.');
+      throw new ForbiddenError('Account access denied. Your account has been deactivated.');
     }
 
     // Verify password
@@ -73,10 +72,9 @@ router.post('/login', validate(validationRules.auth.login), asyncHandler(async (
         sessionId: user._id.toString()
       }
     });
-  } catch (error) {
-    next(error);
-  }
 }));
+
+
 
 // GET /api/auth/me - Get current user profile (protected)
 router.get('/me', authenticateToken, asyncHandler(async (req, res) => {

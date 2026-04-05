@@ -85,8 +85,11 @@ The server will start at `http://localhost:3000`
 ### Base URL
 ```
 Development: http://localhost:3000/api
-Production: https://your-domain.com/api
+Production: https://fintech-backend-system-vq8g.onrender.com/api
 ```
+
+### Live Demo
+🚀 **Live Demo**: [https://fintech-backend-system-vq8g.onrender.com/](https://fintech-backend-system-vq8g.onrender.com/)
 
 ### Authentication Required
 All endpoints (except login and health check) require JWT authentication:
@@ -130,6 +133,8 @@ Authorization: Bearer <your-jwt-token>
 | GET | `/dashboard/category` | Category-wise statistics | All Roles |
 | GET | `/dashboard/trends` | Monthly income vs expense trends | All Roles |
 | GET | `/dashboard/recent` | Recent transactions | All Roles |
+
+| GET | `/docs` | API endpoint documentation | Public |
 
 ####  Health Check
 | Method | Endpoint | Description | Access |
@@ -213,8 +218,19 @@ Authorization: Bearer <your-jwt-token>
 
 ##  Testing
 
-### API Testing
-All APIs are tested using Postman API for comprehensive testing and validation.
+### Test Scripts
+```bash
+npm test              # Runs input validation tests (test-validation.js)
+npm run test:dashboard # Runs dashboard API tests (test-dashboard.js)
+node scripts/verify-api.js  # Full end-to-end API verification
+```
+
+### Quick Verification
+With the server running, execute:
+```bash
+node scripts/verify-api.js
+```
+This script verifies: login, record CRUD, RBAC enforcement, soft delete, and the documentation route.
 
 ##  Configuration
 
@@ -242,9 +258,10 @@ All APIs are tested using Postman API for comprehensive testing and validation.
 
 ### Data Protection
 - **Input Validation**: Comprehensive request validation
-- **SQL Injection Prevention**: MongoDB ODM protection
+- **SQL Injection Prevention**: MongoDB ODM protection  
 - **XSS Protection**: Input sanitization
-- **Rate Limiting**: Request throttling (configurable)
+- **Rate Limiting**: 100 requests per 15 minutes per IP via `express-rate-limit`
+- **Soft Delete**: Records are never permanently removed, ensuring data integrity
 
 ### Error Handling
 - **Global Error Handler**: Centralized error management
@@ -391,8 +408,11 @@ This project is licensed under the ISC License.
 - **Validation**: Comprehensive input validation and error handling
 - **API Design**: RESTful endpoints with proper HTTP status codes
 - **Database**: MongoDB with optimized queries and indexing
-- **Security**: Password hashing, input sanitization, error handling
+- **Security**: Password hashing, input sanitization, rate limiting
+- **Soft Delete**: Records are flagged as deleted, not removed, preserving data history
+- **API Docs**: `GET /api/docs` returns a full JSON schema of all endpoints
 
 ---
 
 **Status: Production Ready** ✅
+**Author**: Pichika Chandu | chandupichika0@gmail.com
